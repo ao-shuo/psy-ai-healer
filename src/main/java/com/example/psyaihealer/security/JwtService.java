@@ -33,7 +33,8 @@ public class JwtService {
             Environment environment) {
         boolean isProd = Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
-        if (secret == null || secret.isBlank()) {
+        boolean missingSecret = (secret == null || secret.isBlank() || "auto-generate".equalsIgnoreCase(secret));
+        if (missingSecret) {
             if (isProd) {
                 throw new IllegalStateException("生产环境必须配置 app.jwt.secret");
             }

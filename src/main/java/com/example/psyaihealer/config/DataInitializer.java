@@ -28,14 +28,20 @@ public class DataInitializer {
             boolean isProd = Arrays.stream(environment.getActiveProfiles())
                     .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
             if (!userService.getRepository().existsByUsername(username)) {
-                if (isProd && (configuredPassword == null || configuredPassword.isBlank())) {
+                boolean missingPassword = (configuredPassword == null || configuredPassword.isBlank()
+                        || "auto-generate".equalsIgnoreCase(configuredPassword));
+                if (isProd && missingPassword) {
                     throw new IllegalStateException("生产环境必须通过 APP_ADMIN_PASSWORD 设置管理员密码");
                 }
-                String password = (configuredPassword == null || configuredPassword.isBlank())
+                String password = missingPassword
                         ? generateSecurePassword()
                         : configuredPassword;
                 userService.registerUser(username, password, "管理员", "admin@example.com", Set.of(Role.ADMIN));
-                log.warn("默认管理员创建完成，用户名={}，临时密码={}，请在配置中显式设置并尽快修改。", username, password);
+                if (missingPassword) {
+                    log.warn("默认管理员创建完成，用户名={}，已为本次运行生成临时密码，请设置 APP_ADMIN_PASSWORD 后重启。", username);
+                } else {
+                    log.info("默认管理员创建完成，用户名={}。", username);
+                }
             }
         };
     }
