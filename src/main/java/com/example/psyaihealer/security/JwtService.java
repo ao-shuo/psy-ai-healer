@@ -6,6 +6,9 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,17 +17,31 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.Arrays;
 
 @Service
 public class JwtService {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
     private final String secret;
     private final long expirationSeconds;
 
     public JwtService(
             @Value("${app.jwt.secret:}") String secret,
-            @Value("${app.jwt.expiration-seconds:86400}") long expirationSeconds) {
-        this.secret = secret == null || secret.isBlank() ? generateRandomSecret() : secret;
+            @Value("${app.jwt.expiration-seconds:86400}") long expirationSeconds,
+            Environment environment) {
+        boolean isProd = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
+        if (secret == null || secret.isBlank()) {
+            if (isProd) {
+                throw new IllegalStateException("生产环境必须配置 app.jwt.secret");
+            }
+            this.secret = generateRandomSecret();
+            log.warn("未配置JWT密钥，已为本次运行生成临时密钥，请在环境变量中设置 app.jwt.secret。");
+        } else {
+            this.secret = secret;
+        }
         this.expirationSeconds = expirationSeconds;
     }
 
