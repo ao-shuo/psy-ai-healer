@@ -50,4 +50,10 @@ public class TherapyService {
     public TherapySession getSessionOrThrow(Long sessionId) {
         return sessionRepository.findById(sessionId).orElseThrow(() -> new IllegalArgumentException("会话不存在"));
     }
+
+    public void ensureOwnership(TherapySession session, User user) {
+        if (!session.getUser().getId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("会话权限不足");
+        }
+    }
 }

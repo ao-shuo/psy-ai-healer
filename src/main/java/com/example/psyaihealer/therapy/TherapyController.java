@@ -42,13 +42,23 @@ public class TherapyController {
     }
 
     @GetMapping("/sessions/{id}/messages")
-    public ResponseEntity<List<TherapyMessage>> messages(@PathVariable Long id) {
+    public ResponseEntity<List<TherapyMessage>> messages(@AuthenticationPrincipal UserDetails principal,
+                                                         @PathVariable Long id) {
+        User user = userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+        TherapySession session = therapyService.getSessionOrThrow(id);
+        therapyService.ensureOwnership(session, user);
         return ResponseEntity.ok(therapyService.messages(id));
     }
 
     @PostMapping("/sessions/{id}/message")
-    public ResponseEntity<ChatResponse> send(@PathVariable Long id, @RequestBody ChatMessage message) {
+    public ResponseEntity<ChatResponse> send(@AuthenticationPrincipal UserDetails principal,
+                                             @PathVariable Long id,
+                                             @RequestBody ChatMessage message) {
+        User user = userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         TherapySession session = therapyService.getSessionOrThrow(id);
+        therapyService.ensureOwnership(session, user);
         ChatResponse response = therapyService.processMessage(session, message.getContent());
         return ResponseEntity.ok(response);
     }

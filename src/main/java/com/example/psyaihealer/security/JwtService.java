@@ -13,8 +13,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
@@ -100,11 +98,11 @@ public class JwtService {
         try {
             return Decoders.BASE64.decode(value);
         } catch (IllegalArgumentException ex) {
-            try {
-                return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-            } catch (NoSuchAlgorithmException e) {
-                throw new IllegalStateException("SHA-256不可用", e);
+            byte[] raw = value.getBytes(StandardCharsets.UTF_8);
+            if (raw.length < 32) {
+                throw new IllegalArgumentException("JWT 密钥长度过短，请提供Base64编码的32字节密钥");
             }
+            return raw;
         }
     }
 

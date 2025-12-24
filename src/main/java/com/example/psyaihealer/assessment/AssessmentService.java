@@ -22,6 +22,9 @@ public class AssessmentService {
         if (answers == null || answers.size() != 9) {
             throw new IllegalArgumentException("PHQ-9需要9个答案");
         }
+        if (answers.stream().anyMatch(ans -> ans < 0 || ans > 3)) {
+            throw new IllegalArgumentException("PHQ-9答案需在0-3之间");
+        }
         int score = answers.stream().mapToInt(Integer::intValue).sum();
         String severity = severity(score);
         String answerString = answers.stream().map(String::valueOf).collect(Collectors.joining(","));

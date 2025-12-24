@@ -7,20 +7,32 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import com.example.psyaihealer.user.User;
+import com.example.psyaihealer.user.UserRepository;
+
+import java.security.Principal;
+
 @Controller
 public class ChatWebSocketController {
 
     private final TherapyService therapyService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final UserRepository userRepository;
 
-    public ChatWebSocketController(TherapyService therapyService, SimpMessagingTemplate messagingTemplate) {
+    public ChatWebSocketController(TherapyService therapyService,
+                                   SimpMessagingTemplate messagingTemplate,
+                                   UserRepository userRepository) {
         this.therapyService = therapyService;
         this.messagingTemplate = messagingTemplate;
+        this.userRepository = userRepository;
     }
 
     @MessageMapping("/chat/{sessionId}")
-    public void handleChat(@DestinationVariable Long sessionId, ChatMessage message) {
+    public void handleChat(@DestinationVariable Long sessionId, ChatMessage message, Principal principal) {
+        User user = userRepository.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         TherapySession session = therapyService.getSessionOrThrow(sessionId);
+        therapyService.ensureOwnership(session, user);
         ChatResponse response = therapyService.processMessage(session, message.getContent());
         messagingTemplate.convertAndSend("/topic/session/" + sessionId, response);
     }
