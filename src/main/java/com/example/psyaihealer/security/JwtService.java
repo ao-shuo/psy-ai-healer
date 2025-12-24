@@ -31,7 +31,7 @@ public class JwtService {
     private final long expirationSeconds;
 
     public JwtService(
-            @Value("${app.jwt.secret:}") String secret,
+            @Value("${app.jwt.secret:auto-generate}") String secret,
             @Value("${app.jwt.expiration-seconds:86400}") long expirationSeconds,
             Environment environment) {
         boolean isProd = Arrays.stream(environment.getActiveProfiles())

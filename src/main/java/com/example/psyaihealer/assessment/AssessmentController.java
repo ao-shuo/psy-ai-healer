@@ -30,13 +30,15 @@ public class AssessmentController {
     @PostMapping("/phq9")
     public ResponseEntity<AssessmentResponse> phq9(@AuthenticationPrincipal UserDetails principal,
                                                    @RequestBody AssessmentRequest request) {
-        User user = userRepository.findByUsername(principal.getUsername()).orElseThrow();
+        User user = userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         return ResponseEntity.ok(assessmentService.scorePhq9(user, request));
     }
 
     @GetMapping("/phq9")
     public ResponseEntity<List<Phq9Assessment>> history(@AuthenticationPrincipal UserDetails principal) {
-        User user = userRepository.findByUsername(principal.getUsername()).orElseThrow();
+        User user = userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         return ResponseEntity.ok(assessmentService.history(user));
     }
 }

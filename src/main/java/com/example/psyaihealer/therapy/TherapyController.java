@@ -27,7 +27,8 @@ public class TherapyController {
     @PostMapping("/sessions")
     public ResponseEntity<TherapySession> create(@AuthenticationPrincipal UserDetails principal,
                                                  @RequestBody(required = false) Map<String, String> body) {
-        User user = userRepository.findByUsername(principal.getUsername()).orElseThrow();
+        User user = userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         String topic = body != null ? body.getOrDefault("topic", "情绪疏导") : "情绪疏导";
         TherapySession session = therapyService.createSession(user, topic);
         return ResponseEntity.ok(session);
@@ -35,7 +36,8 @@ public class TherapyController {
 
     @GetMapping("/sessions")
     public ResponseEntity<List<TherapySession>> list(@AuthenticationPrincipal UserDetails principal) {
-        User user = userRepository.findByUsername(principal.getUsername()).orElseThrow();
+        User user = userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         return ResponseEntity.ok(therapyService.sessionsFor(user));
     }
 

@@ -59,6 +59,7 @@ public class AuthService {
     }
 
     public User currentUser(String username) {
-        return userRepository.findByUsername(username).orElseThrow();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
     }
 }
