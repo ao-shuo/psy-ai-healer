@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -21,9 +22,9 @@ public class JwtService {
     private final long expirationSeconds;
 
     public JwtService(
-            @Value("${app.jwt.secret:ZGVmYXVsdC1wc3ktaGVhbGVyLXNlY3JldC1rZXk=}") String secret,
+            @Value("${app.jwt.secret:}") String secret,
             @Value("${app.jwt.expiration-seconds:86400}") long expirationSeconds) {
-        this.secret = secret;
+        this.secret = secret == null || secret.isBlank() ? generateRandomSecret() : secret;
         this.expirationSeconds = expirationSeconds;
     }
 
@@ -72,5 +73,10 @@ public class JwtService {
     private Key getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private String generateRandomSecret() {
+        Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        return Encoders.BASE64.encode(key.getEncoded());
     }
 }
