@@ -3,21 +3,18 @@ package com.example.psyaihealer.multiagent;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class MultiAgentService {
 
-    private final Random random = new Random();
-
     public AgentResult process(String userMessage) {
-        String scene = buildScene(userMessage);
-        String challenge = challengeCognition(userMessage);
-        String guide = positiveGuide(userMessage);
-        List<String> options = List.of(scene, challenge, guide);
-        String selected = options.get(random.nextInt(options.size()));
-        String strategy = selected.equals(scene) ? "场景构建" : selected.equals(challenge) ? "认知挑战" : "积极引导";
-        return new AgentResult(selected, strategy);
+        List<AgentResult> options = List.of(
+                new AgentResult(buildScene(userMessage), "场景构建"),
+                new AgentResult(challengeCognition(userMessage), "认知挑战"),
+                new AgentResult(positiveGuide(userMessage), "积极引导")
+        );
+        return options.get(ThreadLocalRandom.current().nextInt(options.size()));
     }
 
     private String buildScene(String message) {

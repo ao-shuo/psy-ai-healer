@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
@@ -89,8 +92,20 @@ public class JwtService {
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
+        byte[] keyBytes = decodeSecret(secret);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private byte[] decodeSecret(String value) {
+        try {
+            return Decoders.BASE64.decode(value);
+        } catch (IllegalArgumentException ex) {
+            try {
+                return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException("SHA-256不可用", e);
+            }
+        }
     }
 
     private String generateRandomSecret() {

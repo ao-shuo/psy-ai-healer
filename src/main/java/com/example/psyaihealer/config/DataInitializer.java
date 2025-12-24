@@ -38,7 +38,13 @@ public class DataInitializer {
                         : configuredPassword;
                 userService.registerUser(username, password, "管理员", "admin@example.com", Set.of(Role.ADMIN));
                 if (missingPassword) {
-                    log.warn("默认管理员创建完成，用户名={}，已为本次运行生成临时密码，请设置 APP_ADMIN_PASSWORD 后重启。", username);
+                    String message = "默认管理员创建完成，用户名=%s，临时密码=%s，请设置 APP_ADMIN_PASSWORD 后重启。"
+                            .formatted(username, password);
+                    if (isProd) {
+                        log.warn("生产环境不应出现自动生成的管理员密码，请检查配置。");
+                    } else {
+                        log.warn(message);
+                    }
                 } else {
                     log.info("默认管理员创建完成，用户名={}。", username);
                 }
