@@ -1,5 +1,6 @@
 package com.example.psyaihealer.assessment;
 
+import com.example.psyaihealer.alert.AlertService;
 import com.example.psyaihealer.dto.AssessmentRequest;
 import com.example.psyaihealer.dto.AssessmentResponse;
 import com.example.psyaihealer.user.User;
@@ -12,9 +13,11 @@ import java.util.stream.Collectors;
 public class AssessmentService {
 
     private final Phq9AssessmentRepository repository;
+    private final AlertService alertService;
 
-    public AssessmentService(Phq9AssessmentRepository repository) {
+    public AssessmentService(Phq9AssessmentRepository repository, AlertService alertService) {
         this.repository = repository;
+        this.alertService = alertService;
     }
 
     public AssessmentResponse scorePhq9(User user, AssessmentRequest request) {
@@ -29,6 +32,9 @@ public class AssessmentService {
         String severity = severity(score);
         String answerString = answers.stream().map(String::valueOf).collect(Collectors.joining(","));
         repository.save(new Phq9Assessment(user, score, severity, answerString));
+        if (score >= 15) {
+            alertService.raiseRiskAlert(user, "PHQ-9得分偏高（建议人工跟进）", score, "PHQ9");
+        }
         return new AssessmentResponse(score, severity);
     }
 

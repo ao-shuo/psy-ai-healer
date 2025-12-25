@@ -30,6 +30,9 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET:auto-generate}
     expiration-seconds: ${APP_JWT_EXPIRATION:86400}
+  registration:
+    admin-code: admin-2025-secret
+    therapist-code: therapist-2025-secret
 
 # H2 数据库配置（注释掉的部分）
 # h2 配置示例：
