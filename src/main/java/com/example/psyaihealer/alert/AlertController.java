@@ -17,13 +17,13 @@ public class AlertController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('THERAPIST') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COUNSELOR') or hasRole('ADMIN')")
     public ResponseEntity<List<Alert>> list() {
         return ResponseEntity.ok(service.pending());
     }
 
     @PostMapping("/resolve/{id}")
-    @PreAuthorize("hasRole('THERAPIST') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COUNSELOR') or hasRole('ADMIN')")
     public ResponseEntity<Alert> resolve(@PathVariable Long id) {
         return ResponseEntity.ok(service.resolve(id));
     }

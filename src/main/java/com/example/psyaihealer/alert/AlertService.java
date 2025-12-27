@@ -22,8 +22,12 @@ public class AlertService {
         return repository.findByStatusOrderByCreatedAtDesc(Alert.Status.PENDING);
     }
 
+    public Alert getOrThrow(Long id) {
+        return repository.findById(id).orElseThrow(() -> new IllegalArgumentException("告警不存在"));
+    }
+
     public Alert resolve(Long id) {
-        Alert alert = repository.findById(id).orElseThrow(() -> new IllegalArgumentException("告警不存在"));
+        Alert alert = getOrThrow(id);
         alert.setStatus(Alert.Status.RESOLVED);
         return repository.save(alert);
     }

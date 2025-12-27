@@ -1,21 +1,16 @@
 package com.example.psyaihealer.user;
 
-import jakarta.persistence.CollectionTable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -29,6 +24,7 @@ public class User {
     private String username;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     private String fullName;
@@ -37,21 +33,23 @@ public class User {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Enumerated(EnumType.STRING)
-    @Column(name = "role")
-    private Set<Role> roles = new HashSet<>();
+    @Column(nullable = false)
+    private Role role = Role.STUDENT;
+
+    @Column(nullable = false)
+    private boolean enabled = true;
 
     public User() {
     }
 
-    public User(String username, String password, String fullName, String email, Set<Role> roles) {
+    public User(String username, String password, String fullName, String email, Role role) {
         this.username = username;
         this.password = password;
         this.fullName = fullName;
         this.email = email;
-        this.roles = roles;
+        this.role = role;
+        this.enabled = (role == Role.STUDENT); // 学生自动启用，其他角色需审核
     }
 
     public Long getId() {
@@ -94,11 +92,36 @@ public class User {
         return createdAt;
     }
 
-    public Set<Role> getRoles() {
-        return roles;
+    public Role getRole() {
+        return role;
     }
 
-    public void setRoles(Set<Role> roles) {
-        this.roles = roles;
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    // 便捷方法：检查是否拥有指定角色
+    public boolean hasRole(Role role) {
+        return this.role == role;
+    }
+
+    public boolean isStudent() {
+        return this.role == Role.STUDENT;
+    }
+
+    public boolean isCounselor() {
+        return this.role == Role.COUNSELOR;
+    }
+
+    public boolean isAdmin() {
+        return this.role == Role.ADMIN;
     }
 }

@@ -1,0 +1,107 @@
+### 心理AI疗愈平台 API 测试
+
+### 1. 注册学生用户
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "student1",
+  "password": "123456",
+  "fullName": "张三",
+  "email": "student1@example.com",
+  "role": "STUDENT"
+}
+
+### 2. 注册心理咨询师（需要注册码）
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "counselor1",
+  "password": "123456",
+  "fullName": "李医生",
+  "email": "counselor1@example.com",
+  "role": "COUNSELOR",
+  "registrationCode": "counselor-2025-secret"
+}
+
+### 3. 注册系统管理员（需要注册码）
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "admin1",
+  "password": "123456",
+  "fullName": "王管理员",
+  "email": "admin1@example.com",
+  "role": "ADMIN",
+  "registrationCode": "admin-2025-secret"
+}
+
+### 4. 学生登录
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "student1",
+  "password": "123456"
+}
+
+### 5. 咨询师登录
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "counselor1",
+  "password": "123456"
+}
+
+### 6. 管理员登录
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin1",
+  "password": "123456"
+}
+
+### 7. 获取当前用户信息（需要先登录获取token）
+GET http://localhost:8080/api/auth/me
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 8. 使用默认管理员登录（推荐）
+# 说明：默认管理员由 DataInitializer 创建，用户名通常为 admin
+# 密码如果未配置，会在后端启动日志里打印“临时密码=xxxx”。
+# 也可以在 application.yml 配置 app.bootstrap.admin.password，或设置环境变量 APP_BOOTSTRAP_ADMIN_PASSWORD 来指定/重置管理员密码。
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "PASTE_ADMIN_PASSWORD_HERE"
+}
+
+### 9. 管理员查看待审核用户列表（enabled=false）
+GET http://localhost:8080/api/admin/users/pending
+Authorization: Bearer PASTE_ADMIN_TOKEN_HERE
+
+### 10. 管理员启用某个用户（把 {id} 替换成上一步返回里的用户id）
+PATCH http://localhost:8080/api/admin/users/123/enable
+Authorization: Bearer PASTE_ADMIN_TOKEN_HERE
+
+### 11. 被启用的咨询师/管理员重新登录（启用后应返回 token）
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "counselor1",
+  "password": "123456"
+}
+
+### 注意事项：
+# 1. 学生(STUDENT)无需注册码，自动启用
+# 2. 咨询师(COUNSELOR)需要注册码: counselor-2025-secret
+# 3. 管理员(ADMIN)需要注册码: admin-2025-secret
+# 4. 咨询师和管理员注册后需要等待管理员审核（enabled=false）
+# 5. 记得将第7个请求中的 YOUR_JWT_TOKEN_HERE 替换为登录返回的 token
+# 6. 管理员接口都在 /api/admin/**，需要 ADMIN 的 Bearer token

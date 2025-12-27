@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface Phq9AssessmentRepository extends JpaRepository<Phq9Assessment, Long> {
     List<Phq9Assessment> findByUser(User user);
+
+    List<Phq9Assessment> findAllByOrderByCreatedAtDesc();
 }

@@ -6,7 +6,10 @@ import com.example.psyaihealer.assessment.Phq9Assessment;
 import com.example.psyaihealer.assessment.Phq9AssessmentRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,7 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/counselor")
-@PreAuthorize("hasRole('THERAPIST') or hasRole('ADMIN')")
+@PreAuthorize("hasRole('COUNSELOR') or hasRole('ADMIN')")
 public class CounselorController {
 
     private final AlertService alertService;
@@ -30,9 +33,27 @@ public class CounselorController {
         return ResponseEntity.ok(alertService.pending());
     }
 
-    @GetMapping("/assessments/latest")
-    public ResponseEntity<List<Phq9Assessment>> latestAssessments() {
-        // For demo simplicity, return all; real-world would paginate/anonymize more.
-        return ResponseEntity.ok(phq9Repo.findAll());
+    @GetMapping("/alerts/{id}")
+    public ResponseEntity<Alert> alert(@PathVariable Long id) {
+        return ResponseEntity.ok(alertService.getOrThrow(id));
+    }
+
+    @PatchMapping("/alerts/{id}/resolve")
+    public ResponseEntity<Alert> resolve(@PathVariable Long id) {
+        return ResponseEntity.ok(alertService.resolve(id));
+    }
+
+    @GetMapping("/assessments")
+    public ResponseEntity<List<Phq9Assessment>> assessments(@RequestParam(name = "limit", required = false) Integer limit) {
+        List<Phq9Assessment> all = phq9Repo.findAllByOrderByCreatedAtDesc();
+        if (limit == null || limit <= 0 || limit >= all.size()) {
+            return ResponseEntity.ok(all);
+        }
+        return ResponseEntity.ok(all.subList(0, limit));
+    }
+
+    @GetMapping("/assessments/{id}")
+    public ResponseEntity<Phq9Assessment> assessment(@PathVariable Long id) {
+        return ResponseEntity.ok(phq9Repo.findById(id).orElseThrow(() -> new IllegalArgumentException("测评不存在")));
     }
 }

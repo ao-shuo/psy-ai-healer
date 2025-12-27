@@ -46,11 +46,10 @@ public class AuthService {
                 request.getPassword(),
                 request.getFullName(),
                 request.getEmail(),
-                Set.of(desiredRole));
+                desiredRole);
 
-        String token = jwtService.generateToken(user.getUsername(), Map.of("roles", user.getRoles()));
-        return new AuthResponse(token, user.getUsername(),
-                user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()));
+        String token = jwtService.generateToken(user.getUsername(), Map.of("role", user.getRole().name()));
+        return new AuthResponse(token, user.getUsername(), Set.of(user.getRole().name()));
     }
 
     public AuthResponse login(AuthRequest request) {
@@ -58,7 +57,11 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
         Set<String> roles = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority).collect(Collectors.toSet());
+            .map(GrantedAuthority::getAuthority)
+            .map(authority -> authority != null && authority.startsWith("ROLE_")
+                ? authority.substring("ROLE_".length())
+                : authority)
+            .collect(Collectors.toSet());
         String token = jwtService.generateToken(request.getUsername(), Map.of("roles", roles));
         return new AuthResponse(token, request.getUsername(), roles);
     }
@@ -69,30 +72,30 @@ public class AuthService {
     }
 
     private Role resolveRole(String candidate) {
-        if (candidate == null) {
-            return Role.USER;
+        if (candidate == null || candidate.isBlank()) {
+            return Role.STUDENT;
         }
         try {
             return Role.valueOf(candidate.trim().toUpperCase());
         } catch (IllegalArgumentException ignored) {
-            return Role.USER;
+            return Role.STUDENT;
         }
     }
 
     private void validateRegistrationCode(Role role, String providedCode) {
-        if (role == Role.USER) {
-            return;
+        if (role == Role.STUDENT) {
+            return; // 学生不需要注册码
         }
         String expected;
         if (role == Role.ADMIN) {
             expected = registrationProperties.getAdminCode();
-        } else if (role == Role.THERAPIST) {
-            expected = registrationProperties.getTherapistCode();
+        } else if (role == Role.COUNSELOR) {
+            expected = registrationProperties.getCounselorCode();
         } else {
             throw new IllegalArgumentException("角色不被允许");
         }
         if (expected == null || expected.isBlank()) {
-            throw new IllegalArgumentException("角色" + role + "的注册已关闭");
+            throw new IllegalArgumentException("角色 " + role.getDisplayName() + " 的注册已关闭");
         }
         if (!expected.equals(providedCode)) {
             throw new IllegalArgumentException("注册码错误");

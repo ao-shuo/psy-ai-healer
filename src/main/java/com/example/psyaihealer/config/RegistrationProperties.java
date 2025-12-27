@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.registration")
 public class RegistrationProperties {
     private String adminCode = "admin-2025-secret";
-    private String therapistCode = "therapist-2025-secret";
+    private String counselorCode = "counselor-2025-secret";
 
     public String getAdminCode() {
         return adminCode;
@@ -17,11 +17,11 @@ public class RegistrationProperties {
         this.adminCode = adminCode;
     }
 
-    public String getTherapistCode() {
-        return therapistCode;
+    public String getCounselorCode() {
+        return counselorCode;
     }
 
-    public void setTherapistCode(String therapistCode) {
-        this.therapistCode = therapistCode;
+    public void setCounselorCode(String counselorCode) {
+        this.counselorCode = counselorCode;
     }
 }

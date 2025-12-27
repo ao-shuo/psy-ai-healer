@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class UserService implements UserDetailsService {
@@ -31,22 +30,27 @@ public class UserService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
-                mapRoles(user.getRoles())
+                user.isEnabled(),
+                true,
+                true,
+                true,
+                mapRoles(user.getRole())
         );
     }
 
-    private Collection<? extends GrantedAuthority> mapRoles(Set<Role> roles) {
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
-                .collect(Collectors.toSet());
+    private Collection<? extends GrantedAuthority> mapRoles(Role role) {
+        return Set.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
     @Transactional
-    public User registerUser(String username, String password, String fullName, String email, Set<Role> roles) {
+    public User registerUser(String username, String password, String fullName, String email, Role role) {
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("用户名已存在");
         }
-        User user = new User(username, passwordEncoder.encode(password), fullName, email, roles);
+        User user = new User(username, passwordEncoder.encode(password), fullName, email, role);
+        if (role == Role.ADMIN && !userRepository.existsByRole(Role.ADMIN)) {
+            user.setEnabled(true);
+        }
         return userRepository.save(user);
     }
 

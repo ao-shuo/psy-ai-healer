@@ -1,0 +1,31 @@
+# Copilot instructions
+
+## Project snapshot
+- Backend is a Spring Boot 3.3.5 service under [psy-ai-healer/src/main/java/com/example/psyaihealer](psy-ai-healer/src/main/java/com/example/psyaihealer) with traditional package tiers (admin, assessment, therapy, user, security, multiagent) so focus on controller → service → repository flow when extending features.
+- Frontend lives in psy-ai-healer-frontend/ and is a Vue 3 + Vite app (see [psy-ai-healer-frontend/src/App.vue](psy-ai-healer-frontend/src/App.vue) and [psy-ai-healer-frontend/src/router/index.ts](psy-ai-healer-frontend/src/router/index.ts) for the shell, routing, and layout pattern).
+- The UX-level [psy-ai-healer-frontend/src/views/HomeView.vue](psy-ai-healer-frontend/src/views/HomeView.vue) orchestrates assessments, therapy conversations, knowledge articles, and the local message board; it is the living example of how the UI consumes the REST surface exposed by the backend.
+
+## Backend patterns that matter
+- Authentication endpoints live in [psy-ai-healer/src/main/java/com/example/psyaihealer/security/AuthController.java](psy-ai-healer/src/main/java/com/example/psyaihealer/security/AuthController.java) and are backed by [psy-ai-healer/src/main/java/com/example/psyaihealer/security/AuthService.java](psy-ai-healer/src/main/java/com/example/psyaihealer/security/AuthService.java) + JwtService; registration/login emit JWTs and the front end expects the token plus username/roles payloads.
+- [psy-ai-healer/src/main/java/com/example/psyaihealer/config/SecurityConfig.java](psy-ai-healer/src/main/java/com/example/psyaihealer/config/SecurityConfig.java) wires JwtAuthenticationFilter, enforces stateless sessions, whitelists `/api/auth/**` and GET `/api/knowledge/**`, and otherwise requires the bearer token; keep new endpoints under `/api/**` and register them if they need to be public.
+- Registration codes for ADMIN and THERAPIST identities are defined via [psy-ai-healer/src/main/java/com/example/psyaihealer/config/RegistrationProperties.java](psy-ai-healer/src/main/java/com/example/psyaihealer/config/RegistrationProperties.java) (default values also mirrored in AuthView when showing the registration-code input).
+- [psy-ai-healer/src/main/resources/application.yml](psy-ai-healer/src/main/resources/application.yml) already points at a shared MySQL instance (credentials included in the repo) and has commented H2 examples; override `spring.datasource.*` via profiles/ENV if you need a safe local environment, and use `APP_JWT_SECRET`/`APP_JWT_EXPIRATION` to keep tokens stable.
+- [psy-ai-healer/src/main/java/com/example/psyaihealer/multiagent/MultiAgentService.java](psy-ai-healer/src/main/java/com/example/psyaihealer/multiagent/MultiAgentService.java) returns one of three canned strategies; therapy-related controllers rely on it to build AI replies, so keep new strategy copy aligned with the recorded strategy name so the UI can display it (`strategy` field consumed by HomeView).
+
+## Front-end patterns to follow
+- Entry point [psy-ai-healer-frontend/src/main.ts](psy-ai-healer-frontend/src/main.ts) wires Pinia + Vue Router, and [psy-ai-healer-frontend/src/App.vue](psy-ai-healer-frontend/src/App.vue) defines the persistent shell/branding/nav; match this structure when adding new global UI pieces.
+- Pinia auth store ([psy-ai-healer-frontend/src/stores/auth.ts](psy-ai-healer-frontend/src/stores/auth.ts)) centralizes token/username/roles, persists them in localStorage keys `psy-ai-token`, `psy-ai-username`, and `psy-ai-roles`, and exposes `isAuthenticated` so views can react when a login status changes.
+- [psy-ai-healer-frontend/src/services/api.ts](psy-ai-healer-frontend/src/services/api.ts) exposes `apiFetch` (JSON headers + base path from VITE_API_BASE_URL default `/api`) and `authFetch` (throws if token missing, attaches `Authorization`). Always reuse these helpers instead of direct fetch calls so error handling stays consistent.
+- [psy-ai-healer-frontend/src/views/HomeView.vue](psy-ai-healer-frontend/src/views/HomeView.vue) is the best illustration of the data flow: it calls `/assessments/phq9`, `/therapy/sessions`, `/therapy/sessions/{id}/messages`, `/therapy/sessions/{id}/message`, and `/knowledge` via authFetch, tracks loading/error states, and wires in the local board cache (KEY `psy-ai-board`); use it as a template when introducing new dashboard sections.
+- [psy-ai-healer-frontend/src/views/AuthView.vue](psy-ai-healer-frontend/src/views/AuthView.vue) (and the Pinia store) handles login/register forms, toggles the registration-code field for non-USER roles, and pushes to `/` after success; keep new auth UI aligned with that form logic.
+
+## Workflows and tooling
+- Backend: use ./mvnw spring-boot:run for local development, ./mvnw test for unit tests, and ./mvnw package to produce the jar (the pom only pulls in Spring Boot starters + jwt + mysql/h2).
+- Frontend: run npm install once, npm run dev for HMR, npm run build for production, npm run test:unit for Vitest, and npm run lint for ESLint; tests live under [psy-ai-healer-frontend/src/components/__tests__](psy-ai-healer-frontend/src/components/__tests__).
+- Coordinate base URLs by setting VITE_API_BASE_URL to point at the backend (`/api` is the default that works when Vite proxies to the Spring Boot server). Keeping the same origin avoids CORS headaches.
+
+## Collaboration notes for Copilot
+- When adding backend APIs, update SecurityConfig if they need to be public and mirror any new DTOs in the `dto` package; controllers under /api typically translate DTO ↔︎ service layers, the same way AuthController does.
+- When mutating auth state, persist via the Pinia store’s persist/helpers so both `HomeView` and `router` know the current user; new features should respect the `isAuthenticated` computed and `authStore.token` invariants.
+- For therapy messages or knowledge content, mirror the shape that HomeView expects (e.g., `strategy` text from MultiAgentService) so that UI displays remain stable.
+- If you need to mock backend data during frontend-only work, keep API contracts in sync with the endpoints shown in HomeView and AuthView (see the service helpers as the single source of truth for headers/authorization).

@@ -4,7 +4,7 @@ spring:
 
   # MySQL 配置
   datasource:
-    url: jdbc:mysql://47.105.85.69:3306/psy_ai_healer?useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://47.105.85.69:3306/psy_ai_healer?useSSL=false&serverTimezone=UTC
     username: lyl
     password: 130427Lyl
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -28,11 +28,11 @@ spring:
 # JWT 配置
 app:
   jwt:
-    secret: ${APP_JWT_SECRET:auto-generate}
-    expiration-seconds: ${APP_JWT_EXPIRATION:86400}
+    secret: mySecretKeyForJWTTokenGenerationMustBeLongEnough12345678
+    expiration-seconds: 86400000
   registration:
     admin-code: admin-2025-secret
-    therapist-code: therapist-2025-secret
+    counselor-code: counselor-2025-secret
 
 # H2 数据库配置（注释掉的部分）
 # h2 配置示例：
