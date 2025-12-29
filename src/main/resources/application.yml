@@ -25,6 +25,9 @@ spring:
       enabled: true
       path: /h2-console
 
+# 演示环境：如需“重启后会话ID从 1 开始”，请启用 demo profile（见 application-demo.yml）。
+# 例如：java -jar target/psy-ai-healer-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo
+
 # JWT 配置
 app:
   jwt:
@@ -33,6 +36,20 @@ app:
   registration:
     admin-code: admin-2025-secret
     counselor-code: counselor-2025-secret
+
+  # 真实大模型(LLM)配置（OpenAI-compatible）
+  # 建议：不要把 apiKey 写进仓库；用环境变量 APP_AI_API_KEY 注入
+  ai:
+    enabled: true
+    # 这里必须是“基址”，不要带 /chat/completions；代码会自动拼接
+    base-url: https://api.deepseek.com/v1
+    api-key: sk-08c8b4524ab0486c9b77bc024d5f6546
+    api-key-header: Authorization
+    authorization-scheme: Bearer
+    model: deepseek-chat
+    temperature: 0.7
+    max-tokens: 512
+    history-limit: 10
 
 # H2 数据库配置（注释掉的部分）
 # h2 配置示例：

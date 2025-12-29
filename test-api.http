@@ -105,3 +105,25 @@ Content-Type: application/json
 # 4. 咨询师和管理员注册后需要等待管理员审核（enabled=false）
 # 5. 记得将第7个请求中的 YOUR_JWT_TOKEN_HERE 替换为登录返回的 token
 # 6. 管理员接口都在 /api/admin/**，需要 ADMIN 的 Bearer token
+
+### 12. 创建疗愈会话（需要学生 token；端口可按你的启动端口修改，比如 8081）
+POST http://localhost:8081/api/therapy/sessions
+Authorization: Bearer PASTE_STUDENT_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "topic": "情绪疏导"
+}
+
+### 13. 获取疗愈会话消息列表（把 {sessionId} 换成上一步返回的 id）
+GET http://localhost:8081/api/therapy/sessions/1/messages
+Authorization: Bearer PASTE_STUDENT_TOKEN_HERE
+
+### 14. 发送疗愈消息（真实 LLM 启用后会返回 strategy=LLM）
+POST http://localhost:8081/api/therapy/sessions/1/message
+Authorization: Bearer PASTE_STUDENT_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "content": "我最近总是很焦虑，晚上睡不着。"
+}

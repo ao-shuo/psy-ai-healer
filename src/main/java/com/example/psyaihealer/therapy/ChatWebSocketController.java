@@ -9,6 +9,7 @@ import org.springframework.stereotype.Controller;
 
 import com.example.psyaihealer.user.User;
 import com.example.psyaihealer.user.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.security.Principal;
 
@@ -29,6 +30,9 @@ public class ChatWebSocketController {
 
     @MessageMapping("/chat/{sessionId}")
     public void handleChat(@DestinationVariable Long sessionId, ChatMessage message, Principal principal) {
+        if (principal == null) {
+            throw new AccessDeniedException("WebSocket 未认证：请在 STOMP CONNECT 里携带 Authorization: Bearer <token>");
+        }
         User user = userRepository.findByUsername(principal.getName())
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         TherapySession session = therapyService.getSessionOrThrow(sessionId);
