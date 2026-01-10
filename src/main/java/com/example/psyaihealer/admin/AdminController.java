@@ -1,5 +1,8 @@
 package com.example.psyaihealer.admin;
 
+import com.example.psyaihealer.profile.UserProfile;
+import com.example.psyaihealer.profile.UserProfileService;
+import com.example.psyaihealer.profile.UserProfileViewDto;
 import com.example.psyaihealer.knowledge.KnowledgeArticle;
 import com.example.psyaihealer.knowledge.KnowledgeService;
 import com.example.psyaihealer.user.Role;
@@ -26,10 +29,14 @@ public class AdminController {
 
     private final UserRepository userRepository;
     private final KnowledgeService knowledgeService;
+    private final UserProfileService profileService;
 
-    public AdminController(UserRepository userRepository, KnowledgeService knowledgeService) {
+    public AdminController(UserRepository userRepository,
+                           KnowledgeService knowledgeService,
+                           UserProfileService profileService) {
         this.userRepository = userRepository;
         this.knowledgeService = knowledgeService;
+        this.profileService = profileService;
     }
 
     @GetMapping("/users")
@@ -44,6 +51,14 @@ public class AdminController {
     public ResponseEntity<User> user(@PathVariable Long id) {
         return ResponseEntity.ok(userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在")));
+    }
+
+    @GetMapping("/users/{id}/profile")
+    public ResponseEntity<UserProfileViewDto> userProfile(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+        UserProfile profile = profileService.getOrCreate(user);
+        return ResponseEntity.ok(UserProfileViewDto.of(user, profile));
     }
 
     @GetMapping("/users/pending")

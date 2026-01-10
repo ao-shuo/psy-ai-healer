@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,17 +35,43 @@ public class JwtService {
             Environment environment) {
         boolean isProd = Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
-        boolean missingSecret = (secret == null || secret.isBlank() || "auto-generate".equalsIgnoreCase(secret));
+        boolean missingSecret = isMissingOrPlaceholder(secret);
+
+        String effective = secret;
+        if (!missingSecret) {
+            // Validate early so login won't fail later with WeakKeyException.
+            // If invalid/weak in non-prod, we auto-generate.
+            try {
+                byte[] keyBytes = decodeSecret(secret);
+                if (keyBytes.length < 32) {
+                    throw new IllegalArgumentException("JWT 密钥长度不足（<32字节）");
+                }
+            } catch (Exception ex) {
+                missingSecret = true;
+                log.warn("JWT 密钥无效或过弱：{}", ex.getMessage());
+            }
+        }
+
         if (missingSecret) {
             if (isProd) {
-                throw new IllegalStateException("生产环境必须配置 app.jwt.secret");
+                throw new IllegalStateException("生产环境必须配置强 JWT 密钥：app.jwt.secret / APP_JWT_SECRET（>=32字节，或Base64/Base64URL编码的>=32字节密钥）");
             }
-            this.secret = generateRandomSecret();
-            log.warn("未配置JWT密钥，已为本次运行生成临时密钥，请在环境变量中设置 app.jwt.secret。");
-        } else {
-            this.secret = secret;
+            effective = generateRandomSecret();
+            log.warn("未配置/配置了弱JWT密钥（非生产环境），已为本次运行生成临时密钥；重启将失效。建议设置 APP_JWT_SECRET 以保证 token 稳定。");
         }
+
+        this.secret = effective;
         this.expirationSeconds = expirationSeconds;
+    }
+
+    private static boolean isMissingOrPlaceholder(String secret) {
+        if (secret == null) return true;
+        String s = secret.trim();
+        if (s.isEmpty()) return true;
+        if ("auto-generate".equalsIgnoreCase(s)) return true;
+        // Common placeholders used in sample configs.
+        if (s.startsWith("CHANGE_ME")) return true;
+        return false;
     }
 
     public String extractUsername(String token) {
@@ -95,15 +122,33 @@ public class JwtService {
     }
 
     private byte[] decodeSecret(String value) {
-        try {
-            return Decoders.BASE64.decode(value);
-        } catch (IllegalArgumentException ex) {
-            byte[] raw = value.getBytes(StandardCharsets.UTF_8);
-            if (raw.length < 32) {
-                throw new IllegalArgumentException("JWT 密钥长度过短，请提供Base64编码的32字节密钥");
-            }
-            return raw;
+        if (value == null) {
+            throw new IllegalArgumentException("JWT 密钥不能为空");
         }
+
+        // Support both Base64 and Base64URL (Base64URL commonly contains '-' and '_' characters).
+        try {
+            byte[] decoded = Decoders.BASE64.decode(value);
+            if (decoded != null && decoded.length > 0) {
+                return decoded;
+            }
+        } catch (DecodingException | IllegalArgumentException ignored) {
+            // ignore
+        }
+
+        try {
+            byte[] decoded = Decoders.BASE64URL.decode(value);
+            if (decoded != null && decoded.length > 0) {
+                return decoded;
+            }
+        } catch (DecodingException | IllegalArgumentException ignored) {
+            // ignore
+        }
+
+        // Fallback: treat it as a raw secret string.
+        // For HS256, require at least 32 bytes (256 bits).
+        byte[] raw = value.getBytes(StandardCharsets.UTF_8);
+        return raw;
     }
 
     private String generateRandomSecret() {

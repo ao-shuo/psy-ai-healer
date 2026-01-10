@@ -1,16 +1,21 @@
 package com.example.psyaihealer.config;
 
 import com.example.psyaihealer.user.Role;
+import com.example.psyaihealer.user.User;
+import com.example.psyaihealer.user.UserRepository;
 import com.example.psyaihealer.user.UserService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Arrays;
 
 @Configuration
@@ -23,72 +28,89 @@ public class DataInitializer {
                                 @Value("${app.bootstrap.admin.enabled:true}") boolean bootstrapEnabled,
                                 @Value("${app.bootstrap.admin.username:admin}") String username,
                                 @Value("${app.bootstrap.admin.password:}") String configuredPassword,
+                                @Value("${app.bootstrap.admin.full-name:管理员}") String fullName,
+                                @Value("${app.bootstrap.admin.email:admin@example.com}") String email,
+                                @Value("${app.bootstrap.admin.reset-password:false}") boolean resetPassword,
+                                Environment environment,
                                 PasswordEncoder passwordEncoder,
-                                Environment environment) {
+                                UserRepository userRepository) {
         return args -> {
             if (!bootstrapEnabled) {
                 log.info("已关闭默认管理员自举创建：app.bootstrap.admin.enabled=false");
                 return;
             }
-            boolean isProd = Arrays.stream(environment.getActiveProfiles())
-                    .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
-            if (!userService.getRepository().existsByUsername(username)) {
-                boolean missingPassword = (configuredPassword == null || configuredPassword.isBlank()
-                        || "auto-generate".equalsIgnoreCase(configuredPassword));
-                if (isProd && missingPassword) {
-                    throw new IllegalStateException("生产环境必须通过 app.bootstrap.admin.password（或环境变量 APP_BOOTSTRAP_ADMIN_PASSWORD）设置管理员密码");
-                }
-                String password = missingPassword
-                        ? generateSecurePassword()
-                        : configuredPassword;
-                var admin = userService.registerUser(username, password, "管理员", "admin@example.com", Role.ADMIN);
-                admin.setEnabled(true);
-                userService.getRepository().save(admin);
-                if (missingPassword) {
-                    String message = "默认管理员创建完成，用户名=%s，临时密码=%s，请设置 app.bootstrap.admin.password（或环境变量 APP_BOOTSTRAP_ADMIN_PASSWORD）后重启。"
-                            .formatted(username, password);
-                    if (isProd) {
-                        log.warn("生产环境不应出现自动生成的管理员密码，请检查配置。");
-                    } else {
-                        log.warn(message);
-                    }
-                } else {
-                    log.info("默认管理员创建完成，用户名={}。", username);
-                }
-            } else {
-                // 兼容历史数据：如果管理员已存在但被禁用，自动启用，确保系统可管理
-                userService.getRepository().findByUsername(username).ifPresent(existing -> {
-                    boolean changed = false;
-                    if (!existing.isEnabled()) {
-                        existing.setEnabled(true);
-                        changed = true;
-                        log.warn("检测到默认管理员账号被禁用，已自动启用。用户名={}", username);
-                    }
-
-                    boolean providedPassword = configuredPassword != null
-                            && !configuredPassword.isBlank()
-                            && !"auto-generate".equalsIgnoreCase(configuredPassword);
-                    if (providedPassword) {
-                        existing.setPassword(passwordEncoder.encode(configuredPassword));
-                        changed = true;
-                        log.warn("已根据配置重置默认管理员密码（app.bootstrap.admin.password）。用户名={}", username);
-                    }
-
-                    if (changed) {
-                        userService.getRepository().save(existing);
-                    }
-                });
-            }
+            initAdminUser(userService, userRepository, username, configuredPassword, fullName, email, resetPassword, passwordEncoder, environment);
         };
     }
 
-    private String generateSecurePassword() {
-        String chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*";
-        SecureRandom random = new SecureRandom();
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 24; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
+    @Transactional
+    void initAdminUser(UserService userService,
+                       UserRepository userRepository,
+                       String username,
+                       String configuredPassword,
+                       String fullName,
+                       String email,
+                       boolean resetPassword,
+                       PasswordEncoder passwordEncoder,
+                       Environment environment) {
+
+        // 以“是否存在任意 ADMIN”作为判断条件，避免管理员用户名不是固定值时误创建。
+        if (!userRepository.existsByRole(Role.ADMIN)) {
+            String effectivePassword = configuredPassword;
+            boolean missingPassword = (effectivePassword == null || effectivePassword.isBlank());
+            boolean isProd = Arrays.stream(environment.getActiveProfiles())
+                    .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
+
+            if (missingPassword) {
+                if (isProd) {
+                    throw new IllegalStateException("未配置默认管理员密码：请设置 app.bootstrap.admin.password");
+                }
+                effectivePassword = generateTempPassword();
+                log.warn("未配置默认管理员密码（非生产环境），已生成临时密码用于启动：username={}，password={}。请尽快修改/通过环境变量配置固定密码。",
+                        username,
+                        effectivePassword);
+            }
+
+            if (userRepository.existsByUsername(username)) {
+                // 用户名被占用但系统里又没有任何管理员，这会导致无法自举。
+                throw new IllegalStateException("无法创建默认管理员：用户名已存在但系统中不存在任何 ADMIN 账号，请更换 app.bootstrap.admin.username 或手动修复数据");
+            }
+
+            User admin = userService.registerUser(username, effectivePassword, fullName, email, Role.ADMIN);
+            admin.setEnabled(true);
+            userRepository.save(admin);
+            if (missingPassword) {
+                log.warn("已创建默认管理员账号：username={}。密码为临时生成值（已在上一条日志中输出），请尽快修改/改为固定配置。", username);
+            } else {
+                log.warn("已创建默认管理员账号：username={}，password=（已按配置设置）。请尽快修改默认密码。", username);
+            }
+            return;
         }
-        return sb.toString();
+
+        // 可选：仅当明确开启时，才重置指定用户名的管理员密码。
+        if (resetPassword && username != null && !username.isBlank()) {
+            userRepository.findByUsername(username).ifPresent(existing -> {
+                if (existing.getRole() != Role.ADMIN) {
+                    log.warn("已跳过管理员密码重置：{} 的 role 不是 ADMIN。", username);
+                    return;
+                }
+                if (configuredPassword == null || configuredPassword.isBlank()) {
+                    log.warn("已跳过管理员密码重置：未配置 app.bootstrap.admin.password");
+                    return;
+                }
+                existing.setPassword(passwordEncoder.encode(configuredPassword));
+                existing.setEnabled(true);
+                userRepository.save(existing);
+                log.warn("已根据配置重置管理员密码并启用账号：username={}", username);
+            });
+        }
+    }
+
+    private static String generateTempPassword() {
+        // 16 bytes -> 22 chars base64url-ish; we add a prefix to make it human-recognizable.
+        byte[] raw = new byte[16];
+        new SecureRandom().nextBytes(raw);
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
+        return "admin-" + token;
     }
 }
